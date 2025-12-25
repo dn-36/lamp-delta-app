@@ -1,6 +1,7 @@
 package com.example.lampappdelta.detail_screen
 
 import android.os.Build
+import androidx.compose.material3.Switch
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -62,8 +64,6 @@ private val timeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 @RequiresApi(Build.VERSION_CODES.O)
 private fun LocalTime.formatHHmm(): String = format(timeFmt)
 
-
-
 class DetailScreen(
     val idLamp: Int
 ) : Screen {
@@ -77,9 +77,13 @@ class DetailScreen(
         var d3 by remember { mutableIntStateOf(15) }
         var d4 by remember { mutableIntStateOf(90) }
 
-        // расписание для каждого диода
+        var led1Enabled by remember { mutableStateOf(true) }
+        var led2Enabled by remember { mutableStateOf(true) }
+        var led3Enabled by remember { mutableStateOf(true) }
+        var led4Enabled by remember { mutableStateOf(true) }
+
         val schedule1 = remember {
-            mutableStateListOf(
+            mutableStateListOf<LedInterval>(
                 LedInterval(LocalTime.of(12, 0), LocalTime.of(13, 0), 15)
             )
         }
@@ -96,7 +100,9 @@ class DetailScreen(
 
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -107,7 +113,7 @@ class DetailScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Настройка диодов и расписаний",
+                            text = "Диоды и интервалы",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -121,47 +127,47 @@ class DetailScreen(
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    LedCard(
-                        title = "Диод 1",
-                        valuePercent = d1,
-                        onValueChange = { d1 = it },
-                        schedule = schedule1,
-                        modifier = Modifier.weight(1f)
-                    )
-                    LedCard(
-                        title = "Диод 2",
-                        valuePercent = d2,
-                        onValueChange = { d2 = it },
-                        schedule = schedule2,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                LedSection(
+                    title = "Диод 1",
+                    isEnabled = led1Enabled,
+                    onEnabledChange = { led1Enabled = it },
+                    valuePercent = d1,
+                    onValueChange = { d1 = it },
+                    schedule = schedule1
+                )
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    LedCard(
-                        title = "Диод 3",
-                        valuePercent = d3,
-                        onValueChange = { d3 = it },
-                        schedule = schedule3,
-                        modifier = Modifier.weight(1f)
-                    )
-                    LedCard(
-                        title = "Диод 4",
-                        valuePercent = d4,
-                        onValueChange = { d4 = it },
-                        schedule = schedule4,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                LedSection(
+                    title = "Диод 2",
+                    isEnabled = led2Enabled,
+                    onEnabledChange = { led2Enabled = it },
+                    valuePercent = d2,
+                    onValueChange = { d2 = it },
+                    schedule = schedule2
+                )
+            }
+
+            item {
+                LedSection(
+                    title = "Диод 3",
+                    isEnabled = led3Enabled,
+                    onEnabledChange = { led3Enabled = it },
+                    valuePercent = d3,
+                    onValueChange = { d3 = it },
+                    schedule = schedule3
+                )
+            }
+
+            item {
+                LedSection(
+                    title = "Диод 4",
+                    isEnabled = led4Enabled,
+                    onEnabledChange = { led4Enabled = it },
+                    valuePercent = d4,
+                    onValueChange = { d4 = it },
+                    schedule = schedule4
+                )
             }
         }
     }
@@ -170,163 +176,126 @@ class DetailScreen(
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LedCard(
+private fun LedSection(
     title: String,
+    isEnabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
     valuePercent: Int,
     onValueChange: (Int) -> Unit,
     schedule: SnapshotStateList<LedInterval>,
-    modifier: Modifier = Modifier
 ) {
-    var showSchedule by remember { mutableStateOf(false) }
+    // для выбора времени
+    var pickIndex by remember { mutableIntStateOf(-1) }
+    var pickField by remember { mutableStateOf<PickField?>(null) }
 
     Card(
-        modifier = modifier.height(180.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-          /*  Row(
+            // Заголовок диода + кнопка "+"
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) { */
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                   // modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f)
                 )
 
-                AssistChip(
-                    onClick = { showSchedule = true },
-                    label = { Text("${schedule.size} интервал(ов)") }
-                )
-          //  }
-
-           // Column {
+                // 👇 подпись + статус
                 Text(
-                    text = "Яркость вручную: $valuePercent%",
+                    text = if (isEnabled) "Вкл" else "Выкл",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Slider(
-                    value = valuePercent.toFloat(),
-                    onValueChange = { onValueChange(it.toInt()) },
-                    valueRange = 0f..100f
+
+                Spacer(Modifier.width(8.dp))
+
+                // Вкл/Выкл
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = onEnabledChange
                 )
 
-             /*   Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.width(6.dp))
 
-                Button(
-                    onClick = { showSchedule = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Настроить расписание")
-                }
-            } */
-        }
-    }
-
-    if (showSchedule) {
-        ScheduleDialog(
-            title = "$title — расписание",
-            schedule = schedule,
-            defaultBrightness = valuePercent,
-            onDismiss = { showSchedule = false }
-        )
-    }
-}
-
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ScheduleDialog(
-    title: String,
-    schedule: SnapshotStateList<LedInterval>,
-    defaultBrightness: Int,
-    onDismiss: () -> Unit
-) {
-    val scroll = rememberScrollState()
-
-    // для выбора времени
-    var pickIndex by remember { mutableIntStateOf(-1) }
-    var pickField by remember { mutableStateOf<PickField?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(scroll),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-
-                if (schedule.isEmpty()) {
-                    Text(
-                        text = "Интервалы не заданы. Добавьте первый интервал.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                schedule.forEachIndexed { index, item ->
-                    IntervalEditor(
-                        item = item,
-                        onChange = { schedule[index] = it },
-                        onDelete = { schedule.removeAt(index) },
-                        onPickStart = {
-                            pickIndex = index
-                            pickField = PickField.START
-                        },
-                        onPickEnd = {
-                            pickIndex = index
-                            pickField = PickField.END
-                        }
-                    )
-                }
-
-                OutlinedButton(
+                // маленькая кнопка "+"
+                IconButton(
                     onClick = {
-                        // дефолт: 12:00–13:00, яркость = текущая вручную
                         schedule.add(
                             LedInterval(
                                 start = LocalTime.of(12, 0),
                                 end = LocalTime.of(13, 0),
-                                brightness = defaultBrightness
+                                brightness = valuePercent
                             )
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                    }
                 ) {
-                    Text("Добавить интервал")
-                }
-
-                // простая валидация "end > start"
-                val hasBad = schedule.any { it.end <= it.start }
-                if (hasBad) {
-                    Text(
-                        text = "⚠️ У некоторых интервалов время “до” должно быть позже времени “с”.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Icon(Icons.Default.Add, contentDescription = "Добавить интервал")
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss) { Text("Готово") }
-        }
-    )
 
-    // TimePicker поверх диалога
+            // Ручная яркость
+            Text(
+                text = "Яркость по умолчанию: $valuePercent%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Slider(
+                value = valuePercent.toFloat(),
+                onValueChange = { onValueChange(it.toInt()) },
+                valueRange = 0f..100f
+            )
+
+            // Интервалы (сразу под диодом)
+            if (schedule.isEmpty()) {
+                Text(
+                    text = "Интервалы не заданы. Нажмите “+”, чтобы добавить.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    schedule.forEachIndexed { index, item ->
+                        IntervalEditor(
+                            item = item,
+                            onChange = { schedule[index] = it },
+                            onDelete = { schedule.removeAt(index) },
+                            onPickStart = {
+                                pickIndex = index
+                                pickField = PickField.START
+                            },
+                            onPickEnd = {
+                                pickIndex = index
+                                pickField = PickField.END
+                            }
+                        )
+                    }
+                }
+            }
+
+            // простая валидация "end > start"
+            val hasBad = schedule.any { it.end <= it.start }
+            if (hasBad) {
+                Text(
+                    text = "⚠️ У некоторых интервалов время “до” должно быть позже времени “с”.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+
+    // TimePicker поверх экрана (как было в диалоге)
     if (pickIndex >= 0 && pickField != null) {
         val current = schedule.getOrNull(pickIndex) ?: return
         val initial = if (pickField == PickField.START) current.start else current.end

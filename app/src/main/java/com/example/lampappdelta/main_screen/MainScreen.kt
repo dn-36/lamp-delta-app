@@ -1,5 +1,8 @@
 package com.example.lampappdelta.main_screen
 
+import android.Manifest
+import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -26,22 +30,31 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import com.example.lampappdelta.BluetoothSearch
 import com.example.lampappdelta.Navigation
 import com.example.lampappdelta.add_lamp.AddLampScreen
 import com.example.lampappdelta.detail_screen.DetailScreen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainScreen(
 
     private val lampNumbers: List<Int> = listOf(1, 2, 3, 4, 5)
 
 ) : Screen {
+
+    private val bluetooth = BluetoothSearch
 
     @Composable
     override fun Content() {
@@ -53,6 +66,8 @@ class MainScreen(
             Navigation.navigator = navigator
 
         }
+
+        val scope = rememberCoroutineScope()
 
         val rows: List<List<Int>> = lampNumbers.chunked(2)
 
@@ -114,8 +129,51 @@ class MainScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить лампу")
             }
+
+            Button(
+
+                onClick = {
+
+                    search(scope)
+
+                }
+
+            ) {
+
+                Text(text = "Список блютуз устройств")
+
+            }
+
         }
+
     }
+
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
+    fun search(scope: CoroutineScope) {
+
+        scope.launch {
+
+            val list = bluetooth.discoverDevices(
+
+                durationMs = 12_000L,
+
+                includeBle = true
+
+            ) { device ->
+
+                val label = device.name ?:  return@discoverDevices
+
+                if (label.isBlank()) return@discoverDevices
+
+                Log.d("BT_DISCOVER", "found name=${label} addr=${device.address}")
+            }
+
+            Log.d("BT_DISCOVER", "finished total=${list.size}")
+        }
+
+    }
+
 }
 
 @Composable
