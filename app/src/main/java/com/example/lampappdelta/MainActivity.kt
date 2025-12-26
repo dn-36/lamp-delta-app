@@ -24,6 +24,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import com.example.lampappdelta.detail_screen.DetailScreen
 import com.example.lampappdelta.main_screen.MainScreen
 import com.example.lampappdelta.ui.theme.LampAppDeltaTheme
+import com.module.common.printer_barcode_tsc.TSCprinter
 
 object Navigation{
 
@@ -61,8 +62,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        BluetoothSearch.init(applicationContext)
-
         // Отключаем автоматическое размещение контента под системные окна:
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -73,6 +72,9 @@ class MainActivity : ComponentActivity() {
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
+
+
+        TSCprinter.init(this)
 
         setContent {
             LampAppDeltaTheme {
