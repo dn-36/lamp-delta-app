@@ -115,8 +115,8 @@ object TSCprinter {
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     suspend fun connectToDevice(
-        deviceName: String,
-       // context: Context,
+        deviceName: String
+
     ): BluetoothSocket? {
 
         _statusFlow.value = StausBluetoothConnection.LOADING
@@ -127,24 +127,38 @@ object TSCprinter {
         try {
             // Проверка разрешения BLUETOOTH_CONNECT (для Android 12+)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+
                 if (ActivityCompat.checkSelfPermission(
+
                         context,
                         android.Manifest.permission.BLUETOOTH_CONNECT
                     ) != android.content.pm.PackageManager.PERMISSION_GRANTED
                 ) {
+
                     Log.e("TSCprinter", "BLUETOOTH_CONNECT permission not granted")
+
                     _statusFlow.value = StausBluetoothConnection.DISCONNECTED
+
                     return null
+
                 }
+
             }
 
             val deviceListSnapshot = synchronized(deviceList) { deviceList.toList() }
+
             _device = deviceListSnapshot.find { it.name == deviceName }
 
             if (_device != null) {
 
-                bluetoothSocket = _device!!.createRfcommSocketToServiceRecord(uuid)
+                Log.d("TSCprinter", "uuids устройства: ${_device!!.uuids}")
+
+                bluetoothSocket = _device!!.createInsecureRfcommSocketToServiceRecord(uuid)
+
+                //_device!!.createRfcommSocketToServiceRecord(uuid)
                 bluetoothSocket.connect()
+
+                Log.d("TSCprinter", "проверка подключения к сокету: ${bluetoothSocket.isConnected}")
 
                 _statusFlow.value = StausBluetoothConnection.CONNECTED
 
