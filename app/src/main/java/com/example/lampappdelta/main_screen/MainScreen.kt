@@ -228,7 +228,7 @@ class MainScreen(
 
                                             scope.launch(Dispatchers.IO) {
 
-                                                TSCprinter.connectToDevice(d)
+                                                TSCprinter.connectToDevice(d, scope)
 
                                             }
 
