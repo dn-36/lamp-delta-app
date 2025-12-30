@@ -1,6 +1,7 @@
 package com.example.lampappdelta.main_screen
 
 import android.Manifest
+import android.bluetooth.BluetoothSocket
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.BorderStroke
@@ -30,14 +31,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +45,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,11 +55,17 @@ import com.example.lampappdelta.Navigation
 import com.example.lampappdelta.R
 import com.example.lampappdelta.add_lamp.AddLampScreen
 import com.example.lampappdelta.detail_screen.DetailScreen
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import android.bluetooth.BluetoothDevice
 import com.module.common.printer_barcode_tsc.TSCprinter
+
+data class FoundDevice(
+
+    val name: String,
+    val address: String,
+    val isPaired: Boolean
+
+)
 
 class MainScreen(
     private val lampNumbers: List<Int> = listOf(1, 2, 3, 4, 5)
@@ -82,8 +86,10 @@ class MainScreen(
         var isScanning by remember { mutableStateOf(false) }
         var scanStatus by remember { mutableStateOf<String?>(null) }
 
+        var socket by remember { mutableStateOf<BluetoothSocket?>(null) }
+
         // Список найденных устройств (уникально по address)
-        val foundDevices = remember { mutableStateListOf<String>() }
+        val foundDevices = remember { mutableStateListOf<FoundDevice>() }
 
         val rows: List<List<Int>> = lampNumbers.chunked(2)
 
@@ -183,6 +189,214 @@ class MainScreen(
                         startScan()
                     }
             )
+
+            Column(
+
+                modifier = Modifier
+                    .align(Alignment.Center)
+
+            ) {
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.getTime(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "get time")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.setTime(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "set time")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.getState(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "get state")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.setState(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "set state")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.getAllLedsState(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "get all leds state")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.setAllLedsState(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "set all leds state")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.getPumpStatus(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "get pump status")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.setPumpStatus(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "set pump status")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.getFunStatus(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "get fun status")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.setFunStatus(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "set fun status")
+
+                }
+
+                Button(
+
+                    onClick = {
+
+                        scope.launch(Dispatchers.IO) {
+
+                            TSCprinter.readTempHumidity(socket!!)
+
+                        }
+
+                    }
+
+                ) {
+
+                    Text(text = "read Temp Humidity")
+
+                }
+
+            }
+
         }
 
         // --- ДИАЛОГ со списком найденных устройств ---
@@ -220,20 +434,20 @@ class MainScreen(
                                     .heightIn(max = 360.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(foundDevices) { d ->
+                                items(foundDevices) { device ->
                                     ListItem(
-                                        headlineContent = { Text(d) },
-                                      //  supportingContent = { Text(d.address) },
+                                        headlineContent = { Text(device.name) },
+                                        supportingContent = { Text(device.address) },
                                         modifier = Modifier.clickable {
 
                                             scope.launch(Dispatchers.IO) {
 
-                                                TSCprinter.connectToDevice(d, scope)
+                                                socket = TSCprinter.connectToDevice(device.name, scope)
 
                                             }
 
                                             // Тут можешь делать connect / переход / сохранить выбранное
-                                            Log.d("BT_DISCOVER", "selected $d")
+                                            Log.d("BT_DISCOVER", "selected $device")
                                             isBtDialogVisible = false
                                         }
                                     )

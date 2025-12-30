@@ -51,7 +51,6 @@ import cafe.adriel.voyager.core.screen.Screen
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-
 private data class LedInterval(
     val start: LocalTime,
     val end: LocalTime,

@@ -10,11 +10,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
+import com.example.lampappdelta.main_screen.FoundDevice
 import com.module.common.printer_barcode_tsc.models.StausBluetoothConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +34,7 @@ object TSCprinter {
     private var _device: BluetoothDevice? = null
     private val deviceList = mutableListOf<BluetoothDevice>()
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private var _actionAddDevice: (String) -> Unit = {}
+    private var _actionAddDevice: (FoundDevice) -> Unit = {}
     private var context: Context? = null
 
     fun init(context: Context): TSCprinter {
@@ -55,7 +54,17 @@ object TSCprinter {
 
                     println("найденные устройства уже спаренные устройства ${device.name}")
 
-                    _actionAddDevice(device.name!!)
+                    _actionAddDevice(
+
+                        FoundDevice(
+
+                            name = device.name?:"",
+                            address = device.address,
+                            isPaired = true
+
+                        )
+
+                    )
 
                     deviceList.add(device)
 
@@ -71,7 +80,16 @@ object TSCprinter {
 
                             println("найденные устройства ACTION_FOUND ${device.name}")
                             deviceList.add(it)
-                            _actionAddDevice(it.name!!)
+                            _actionAddDevice(
+
+                                FoundDevice(
+
+                                    name = it.name?:"",
+                                    address = it.address,
+                                    isPaired = false
+
+                                )
+                            )
                         }
                     }
                 }
@@ -82,7 +100,7 @@ object TSCprinter {
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    fun searchForDevices(actionAddDevice: (String) -> Unit): List<BluetoothDevice> {
+    fun searchForDevices(actionAddDevice: (FoundDevice) -> Unit): List<BluetoothDevice> {
         _actionAddDevice = actionAddDevice
 
         // Проверяем разрешение локации (нужно для поиска Bluetooth)
@@ -213,6 +231,215 @@ object TSCprinter {
         }
 
         return bluetoothSocket
+    }
+
+    suspend fun getTime(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val getTimePacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x54,                         // 'T' (GET_ESP32_TIME)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(getTimePacket)
+        out.flush()
+
+    }
+
+    suspend fun setTime(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val setEsp32TimePacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x53,                         // 'S' (SET_ESP32_TIME)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(setEsp32TimePacket)
+        out.flush()
+
+    }
+
+    suspend fun getState(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val getStatePacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x51,                         // 'Q' (GET_LED_STATE)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(getStatePacket)
+        out.flush()
+
+    }
+
+    suspend fun setState(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val setLedStatePacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x4C,                         // 'L' (SET_LED_STATE)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(setLedStatePacket)
+        out.flush()
+
+    }
+
+    suspend fun getAllLedsState(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val getAllLedsPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x4D,                         // 'M' (GET_ALL_LEDS_STATE)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(getAllLedsPacket)
+        out.flush()
+
+    }
+
+    suspend fun setAllLedsState(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val setAllLedsPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x47,                         // 'G' (SET_ALL_LEDS)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(setAllLedsPacket)
+        out.flush()
+
+    }
+
+    suspend fun getPumpStatus(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val getPumpStatusPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x4F,                         // 'O' (GET_PUMP_STATUS)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(getPumpStatusPacket)
+        out.flush()
+
+    }
+
+    suspend fun setPumpStatus(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val setPumpCtrlPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016"
+            0x49,                         // 'I'
+            0x50,                         // 'P' (SET_PUMP_CTRL)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(setPumpCtrlPacket)
+        out.flush()
+
+    }
+
+    suspend fun getFunStatus(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val getFanStatusPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x56,                         // 'V' (GET_FAN_STATUS)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(getFanStatusPacket)
+        out.flush()
+
+    }
+
+    suspend fun setFunStatus(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val setFanCtrlPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016"
+            0x49,                         // 'I'
+            0x46,                         // 'F' (SET_FAN_CTRL)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(setFanCtrlPacket)
+        out.flush()
+
+    }
+
+    suspend fun readTempHumidity(bluetoothSocket: BluetoothSocket) {
+
+        val out = bluetoothSocket.outputStream
+
+        val readTempHumidityPacket = byteArrayOf(
+            0x43, 0x4D, 0x44,             // "CMD"
+            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
+            0x49,                         // 'I' (APP -> DEVICE)
+            0x43,                         // 'C' (READ_TEMP_HUMIDITY)
+            0x00, 0x00,                   // tx_number = 0
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x45, 0x4E, 0x44              // "END"
+        )
+
+        out.write(readTempHumidityPacket)
+        out.flush()
+
     }
 
     suspend fun readLoop(socket: BluetoothSocket, onFrame: (ByteArray) -> Unit) =
