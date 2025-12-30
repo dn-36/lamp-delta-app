@@ -196,7 +196,7 @@ object TSCprinter {
                     }
                 }
 
-                val out = bluetoothSocket.outputStream
+               /* val out = bluetoothSocket.outputStream
 
                 val queryStatusPacket = byteArrayOf(
                     0x43, 0x4D, 0x44,             // 'C' 'M' 'D'
@@ -209,7 +209,7 @@ object TSCprinter {
                 )
 
                 out.write(queryStatusPacket)
-                out.flush()
+                out.flush() */
 
                 Log.d("TSCprinter", "проверка подключения к сокету: ${bluetoothSocket.isConnected}")
 
@@ -275,17 +275,18 @@ object TSCprinter {
 
         val out = bluetoothSocket.outputStream
 
-        val getStatePacket = byteArrayOf(
+        val getLedStateLed2Packet = byteArrayOf(
             0x43, 0x4D, 0x44,             // "CMD"
-            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
-            0x49,                         // 'I' (APP -> DEVICE)
+            0x30, 0x30, 0x31, 0x37,       // "0018" (18 байт, т.к. data = 2 байта)
+            0x49,                         // 'I'
             0x51,                         // 'Q' (GET_LED_STATE)
             0x00, 0x00,                   // tx_number = 0
-            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x02.toByte(),                   // led_idx = 2 (big-endian)
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока заглушка как у QUERY_STATUS!)
             0x45, 0x4E, 0x44              // "END"
         )
 
-        out.write(getStatePacket)
+        out.write(getLedStateLed2Packet)
         out.flush()
 
     }
@@ -294,13 +295,17 @@ object TSCprinter {
 
         val out = bluetoothSocket.outputStream
 
+        val msgData = ByteArray(32) { 0x00 } // 32 байта
+        msgData[0] = 0x01
+
         val setLedStatePacket = byteArrayOf(
             0x43, 0x4D, 0x44,             // "CMD"
-            0x30, 0x30, 0x31, 0x36,       // "0016" (16 байт, т.к. data пустая)
-            0x49,                         // 'I' (APP -> DEVICE)
+            0x30, 0x30, 0x34, 0x38,       // "0048" (48 байт = 16 + 32)
+            0x49,                         // 'I'
             0x4C,                         // 'L' (SET_LED_STATE)
-            0x00, 0x00,                   // tx_number = 0
-            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока как у QUERY_STATUS)
+            0x00, 0x00                    // tx_number = 0
+        ) + msgData + byteArrayOf(
+            0xFD.toByte(), 0xDD.toByte(), // CRC16 (пока заглушка)
             0x45, 0x4E, 0x44              // "END"
         )
 
@@ -440,6 +445,43 @@ object TSCprinter {
         out.write(readTempHumidityPacket)
         out.flush()
 
+    }
+
+    interface BtCommand {
+        val cmd: Byte
+        fun payload(): ByteArray
+    }
+
+    class GetLedStateCmd(private val ledIdx: Int): BtCommand {
+        override val cmd: Byte = 'Q'.code.toByte()
+        override fun payload(): ByteArray {
+            // допустим uint16 little-endian
+            return byteArrayOf(
+                (ledIdx and 0xFF).toByte(),
+                ((ledIdx shr 8) and 0xFF).toByte()
+            )
+        }
+    }
+
+    fun buildPacket(command: BtCommand, tx: Int = 0): ByteArray {
+        val data = command.payload()
+        val totalLen = 16 + data.size
+        val lenStr = totalLen.toString().padStart(4, '0') // "0018", "0048", ...
+
+        val header = byteArrayOf(
+            'C'.code.toByte(), 'M'.code.toByte(), 'D'.code.toByte(),
+            lenStr[0].code.toByte(), lenStr[1].code.toByte(), lenStr[2].code.toByte(), lenStr[3].code.toByte(),
+            'I'.code.toByte(),
+            command.cmd,
+            0x00, 0x00 // tx_number пока 0
+        )
+
+        val tail = byteArrayOf(
+            0xFD.toByte(), 0xDD.toByte(), // CRC пока заглушка
+            'E'.code.toByte(), 'N'.code.toByte(), 'D'.code.toByte()
+        )
+
+        return header + data + tail
     }
 
     suspend fun readLoop(socket: BluetoothSocket, onFrame: (ByteArray) -> Unit) =

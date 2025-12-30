@@ -58,6 +58,7 @@ import com.example.lampappdelta.detail_screen.DetailScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.module.common.printer_barcode_tsc.TSCprinter
+import com.module.common.printer_barcode_tsc.TSCprinter.buildPacket
 
 data class FoundDevice(
 
@@ -347,7 +348,9 @@ class MainScreen(
 
                         scope.launch(Dispatchers.IO) {
 
-                            TSCprinter.getFunStatus(socket!!)
+                            val packet = buildPacket(TSCprinter.GetLedStateCmd(ledIdx = 2))
+
+                          //  TSCprinter.getFunStatus(socket!!)
 
                         }
 
